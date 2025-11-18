@@ -2,53 +2,51 @@
 <html lang="hu">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Videó Stream</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lejátszó</title>
     <style>
-        /* 1. lépés: Minden felesleg eltüntetése */
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000; /* Fekete háttér, mint a moziban */
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* 1. Teljesen töröljük a margókat és fixáljuk a hátteret */
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            background-color: #000 !important; /* Fekete háttér */
+            overflow: hidden !important; /* Nincs görgetés */
         }
 
-        /* 2. lépés: A natív lejátszó beállítása */
-        /* Ez a rész mondja meg a böngészőnek, hogy ez egy LEJÁTSZÓ, nem letöltés */
+        /* 2. A VIDEÓ BEÁLLÍTÁSA */
         video {
-            width: 100%;
-            height: 100%;
-            /* object-fit: contain = tartsa meg az arányokat, de töltse ki a képernyőt */
-            object-fit: contain; 
-            outline: none;
-        }
-
-        /* Betöltés jelző */
-        #loader {
-            position: absolute;
-            color: white;
-            font-family: sans-serif;
-            z-index: -1; /* A videó alatt legyen */
+            /* Ez a kulcs: FIX pozíció. Nem tud elcsúszni. */
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            bottom: 0 !important;
+            right: 0 !important;
+            
+            /* Kényszerítjük, hogy töltse ki a rendelkezésre álló helyet */
+            width: 100% !important;
+            height: 100% !important;
+            
+            /* Ez biztosítja, hogy a videó aránya megmaradjon (ne nyúljon meg a fej) */
+            /* Ha azt akarod, hogy torzítva is kitöltse, használd a 'cover'-t a 'contain' helyett */
+            object-fit: contain !important;
+            
+            outline: none !important;
+            z-index: 9999 !important;
         }
     </style>
 </head>
 <body>
 
-    <div id="loader">Videó betöltése...</div>
-
-    <video id="stream-player" controls autoplay name="media"></video>
+    <video id="player" controls autoplay playsinline name="media"></video>
 
     <script>
         window.onload = function() {
             const fullUrl = window.location.href;
             let videoLink = null;
 
-            // URL kiszedése (?film= vagy ?urls= után)
+            // URL felismerése
             if (fullUrl.includes("film=")) {
                 videoLink = fullUrl.substring(fullUrl.indexOf("film=") + 5);
             } else if (fullUrl.includes("urls=")) {
@@ -56,18 +54,11 @@
             }
 
             if (videoLink) {
-                // Ha van kódolás (%20, %3A), visszaalakítjuk
                 try { if(videoLink.includes('%')) videoLink = decodeURIComponent(videoLink); } catch(e){}
                 
-                const player = document.getElementById('stream-player');
-                
-                // BEÁLLÍTJUK A FORRÁST
-                // Ez a pillanat, amikor a böngésző rájön: "Hahó, ez egy videó, le kell játszani!"
-                // Nem fogja letölteni, mert a <video> címkében van.
+                const player = document.getElementById('player');
                 player.src = videoLink;
-
-                // Konzolba kiírjuk a diagnosztikához
-                console.log("Stream indítása innen:", videoLink);
+                console.log("Fixált lejátszó indítása:", videoLink);
             }
         };
     </script>
