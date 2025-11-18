@@ -3,81 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Csatlakozás...</title>
+    <title>Videó Stream</title>
     <style>
-        body {
-            background-color: #000;
-            color: white;
+        /* 1. lépés: Minden felesleg eltüntetése */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000; /* Fekete háttér, mint a moziban */
+            overflow: hidden;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            font-family: sans-serif;
-            text-align: center;
         }
-        .loader {
-            border: 5px solid #333;
-            border-top: 5px solid #e50914;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
+
+        /* 2. lépés: A natív lejátszó beállítása */
+        /* Ez a rész mondja meg a böngészőnek, hogy ez egy LEJÁTSZÓ, nem letöltés */
+        video {
+            width: 100%;
+            height: 100%;
+            /* object-fit: contain = tartsa meg az arányokat, de töltse ki a képernyőt */
+            object-fit: contain; 
+            outline: none;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        p { margin-top: 20px; color: #888; }
-        
-        #manual-link {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background: #333;
+
+        /* Betöltés jelző */
+        #loader {
+            position: absolute;
             color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            display: none; /* Csak akkor jelenik meg, ha nem sikerül az ugrás */
+            font-family: sans-serif;
+            z-index: -1; /* A videó alatt legyen */
         }
     </style>
 </head>
 <body>
 
-    <div class="loader"></div>
-    <h2>Videó megnyitása...</h2>
-    <p>Kérlek várj, átirányítás a lejátszóra.</p>
-    
-    <a id="manual-link" href="#">Kattints ide, ha nem indulna el</a>
+    <div id="loader">Videó betöltése...</div>
+
+    <video id="stream-player" controls autoplay name="media"></video>
 
     <script>
         window.onload = function() {
-            // 1. Megkeressük a linket a címsorban
             const fullUrl = window.location.href;
             let videoLink = null;
 
+            // URL kiszedése (?film= vagy ?urls= után)
             if (fullUrl.includes("film=")) {
                 videoLink = fullUrl.substring(fullUrl.indexOf("film=") + 5);
             } else if (fullUrl.includes("urls=")) {
                 videoLink = fullUrl.substring(fullUrl.indexOf("urls=") + 5);
             }
 
-            // 2. Ha megvan a videó linkje...
             if (videoLink) {
-                // Dekódoljuk, ha szükséges
+                // Ha van kódolás (%20, %3A), visszaalakítjuk
                 try { if(videoLink.includes('%')) videoLink = decodeURIComponent(videoLink); } catch(e){}
+                
+                const player = document.getElementById('stream-player');
+                
+                // BEÁLLÍTJUK A FORRÁST
+                // Ez a pillanat, amikor a böngésző rájön: "Hahó, ez egy videó, le kell játszani!"
+                // Nem fogja letölteni, mert a <video> címkében van.
+                player.src = videoLink;
 
-                // Beállítjuk a mentőöv gombot (ha az automata nem menne)
-                const linkBtn = document.getElementById('manual-link');
-                linkBtn.href = videoLink;
-                linkBtn.style.display = 'inline-block';
-
-                // 3. A LÉNYEG: AZONNALI UGRÁS
-                // Ez azt mondja a böngészőnek: "Hagyd el a szaby.com-ot, és nyisd meg ezt a fájlt!"
-                // Mivel ez egy fájl/stream, a böngésző a NATÍV lejátszót fogja használni.
-                console.log("Ugrás ide:", videoLink);
-                window.location.replace(videoLink);
-            } else {
-                document.querySelector('h2').innerText = "Nincs megadva videó!";
-                document.querySelector('.loader').style.display = "none";
+                // Konzolba kiírjuk a diagnosztikához
+                console.log("Stream indítása innen:", videoLink);
             }
         };
     </script>
