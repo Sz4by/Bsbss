@@ -2,11 +2,14 @@
 <html lang="hu">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nyers TV Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <title>Lejátszó...</title> <link id="dynamic-favicon" rel="icon" href="data:;base64,iVBORw0KGgo=">
 
     <style>
-        /* Alapbeállítások */
         body {
             margin: 0;
             padding: 0;
@@ -18,7 +21,7 @@
             color: white;
         }
 
-        /* MENÜ RÉSZ */
+        /* MENÜ */
         #menu-screen {
             display: flex;
             flex-direction: column;
@@ -37,6 +40,8 @@
             font-size: 18px;
             margin-bottom: 15px;
             text-align: center;
+            border-radius: 5px;
+            border: none;
         }
 
         .btn {
@@ -46,22 +51,13 @@
             color: white;
             border: none;
             cursor: pointer;
-            margin: 5px;
+            border-radius: 5px;
+            margin: 10px;
         }
 
-        /* ELŐZMÉNYEK */
-        #history-list {
-            margin-top: 20px;
-            width: 60%;
-            max-height: 30%;
-            overflow-y: auto;
-            background: #222;
-        }
-        .history-item { padding: 10px; border-bottom: 1px solid #444; cursor: pointer; }
-
-        /* LEJÁTSZÓ TÁROLÓ */
+        /* LEJÁTSZÓ */
         #player-container {
-            display: none; /* Alapból rejtve */
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
@@ -71,131 +67,218 @@
             z-index: 20;
         }
 
-        /* ITT A LÉNYEG:
-           Levettem minden extra stílust.
-           Csak azt mondjuk, hogy legyen akkora, mint a képernyő.
-           A kinézetet 100%-ban a böngészőre bízzuk.
-        */
         video {
             width: 100%;
             height: 100%;
+            object-fit: contain;
         }
 
-        /* Vissza gomb (bal felül, halványan) */
-        #back-btn {
+        /* SAJÁT GOMBOK */
+        #custom-controls {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 30;
-            background: rgba(0,0,0,0.5);
-            color: white;
-            border: 1px solid white;
-            padding: 10px;
-            cursor: pointer;
-            display: none; /* Csak egérmozgásra */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        #player-container:hover #back-btn { display: block; }
 
+        #center-play-btn {
+            width: 80px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            border: 2px solid white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        #play-icon {
+            width: 0; height: 0; 
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            border-left: 25px solid white;
+            margin-left: 5px;
+        }
+
+        #progress-container {
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%; height: 5px;
+            background: rgba(255,255,255,0.3);
+        }
+        #progress-bar {
+            width: 0%; height: 100%;
+            background: red;
+            transition: width 0.1s linear;
+        }
+
+        #back-btn {
+            position: absolute; top: 20px; left: 20px; z-index: 30;
+            background: rgba(0,0,0,0.6); color: white;
+            border: 1px solid white; padding: 10px 20px;
+            cursor: pointer; pointer-events: auto;
+        }
     </style>
 </head>
 <body>
 
     <div id="menu-screen">
-        <h1>Nyers Lejátszó</h1>
-        <input type="text" id="urlInput" placeholder="Link helye...">
-        
-        <button class="btn" onclick="startPlayer()">LEJÁTSZÁS (Appban)</button>
-        
-        <button class="btn" style="background-color: #333;" onclick="openDirectSystem()">Megnyitás Rendszer Lejátszóval</button>
-        
-        <div id="history-list"></div>
+        <h1>Mozi Mód</h1>
+        <input type="text" id="urlInput" placeholder="Link...">
+        <button class="btn" onclick="startPlayer()">Indítás</button>
+        <div id="history-list" style="margin-top:20px; color:#aaa;"></div>
     </div>
 
-    <div id="player-container">
-        <button id="back-btn" onclick="stopPlayer()">VISSZA</button>
-        
-        <video id="raw-video" controls autoplay playsinline>
-            A böngésződ nem támogatja a videót.
-        </video>
+    <div id="player-container" onclick="togglePlay()">
+        <button id="back-btn" onclick="stopPlayer(event)">VISSZA</button>
+        <video id="my-video" playsinline></video>
+        <div id="custom-controls">
+            <div id="center-play-btn"><div id="play-icon"></div></div>
+            <div id="progress-container"><div id="progress-bar"></div></div>
+        </div>
     </div>
 
     <script>
-        const playerContainer = document.getElementById('player-container');
-        const videoElement = document.getElementById('raw-video');
+        const video = document.getElementById('my-video');
         const urlInput = document.getElementById('urlInput');
         const menuScreen = document.getElementById('menu-screen');
+        const playerContainer = document.getElementById('player-container');
+        const centerBtn = document.getElementById('center-play-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const historyList = document.getElementById('history-list');
 
+        // --- URL Feldolgozás és Böngésző Átverés ---
         window.onload = function() {
             loadHistory();
-            // URL paraméter olvasása
             const fullUrl = window.location.href;
-            if (fullUrl.includes("urls=")) {
-                let videoLink = fullUrl.substring(fullUrl.indexOf("urls=") + 5);
+            let videoLink = null;
+
+            if (fullUrl.includes("film=")) {
+                videoLink = fullUrl.substring(fullUrl.indexOf("film=") + 5);
+            } else if (fullUrl.includes("urls=")) {
+                videoLink = fullUrl.substring(fullUrl.indexOf("urls=") + 5);
+            }
+
+            if (videoLink) {
                 try { if(videoLink.includes('%')) videoLink = decodeURIComponent(videoLink); } catch(e){}
-                // Ha URL-ből jön, egyből indítjuk
                 startPlayer(videoLink);
             }
         };
 
-        // 1. opció: Lejátszás az oldalon belül (mint az App)
         function startPlayer(link = null) {
             const url = link || urlInput.value;
             if (!url) return alert("Nincs link!");
-            
+
             saveToHistory(url);
-            
             menuScreen.style.display = 'none';
             playerContainer.style.display = 'block';
             
-            videoElement.src = url;
-            videoElement.play().catch(e => console.log("Kattintani kell az indításhoz"));
+            // 1. TRÜKK: Átírjuk a böngészőfül címét a fájl nevére
+            // Kinyerjük a fájlnevet a link végéről (pl. video.mp4)
+            let fileName = "Video Lejátszása...";
+            try {
+                // Megkeressük az utolsó "/" jelet és ami utána van, az a név
+                fileName = "▶ " + url.split('/').pop().split('?')[0];
+                // Ha túl hosszú a név, levágjuk
+                if (fileName.length > 30) fileName = fileName.substring(0, 30) + "...";
+            } catch(e) {}
+            document.title = fileName;
+
+            // 2. TRÜKK: Favicon (kis ikon) cseréje Play gombra
+            setPlayIcon();
+
+            video.src = url;
+            video.play().then(() => {
+                updatePlayIcon(true);
+            }).catch(e => {
+                updatePlayIcon(false);
+            });
         }
 
-        // 2. opció: A böngésző saját, teljes képernyős ablakának kényszerítése
-        // Ez adja vissza leginkább a telefonos kinézetet!
-        function openDirectSystem() {
-            const url = urlInput.value;
-            if (!url) return alert("Nincs link!");
-            saveToHistory(url);
-            
-            // Ez átirányítja a böngészőt közvetlenül a videófájlra
-            window.location.href = url;
-        }
-
-        function stopPlayer() {
-            videoElement.pause();
-            videoElement.src = "";
+        function stopPlayer(event) {
+            if(event) event.stopPropagation();
+            video.pause();
+            video.src = "";
             playerContainer.style.display = 'none';
             menuScreen.style.display = 'flex';
+            document.title = "Mozi Mód"; // Visszaállítjuk a címet
         }
 
-        // Előzmények mentése
-        function saveToHistory(url) {
-            let history = JSON.parse(localStorage.getItem('raw_history') || '[]');
-            if (!history.includes(url)) {
-                history.unshift(url);
-                if (history.length > 10) history.pop();
-                localStorage.setItem('raw_history', JSON.stringify(history));
-                loadHistory();
+        function togglePlay() {
+            if (video.paused) {
+                video.play();
+                updatePlayIcon(true);
+            } else {
+                video.pause();
+                updatePlayIcon(false);
             }
         }
 
+        function updatePlayIcon(isPlaying) {
+            if (isPlaying) {
+                centerBtn.style.display = 'none';
+                document.title = document.title.replace("⏸", "▶"); // Ikon csere a címben
+            } else {
+                centerBtn.style.display = 'flex';
+                document.title = document.title.replace("▶", "⏸"); // Ikon csere a címben
+            }
+        }
+
+        video.addEventListener('timeupdate', () => {
+            if (video.duration) {
+                const percent = (video.currentTime / video.duration) * 100;
+                progressBar.style.width = percent + '%';
+            }
+        });
+        video.addEventListener('ended', () => centerBtn.style.display = 'flex');
+
+        // Favicon generátor (Kis play gombot rajzol a fülre)
+        function setPlayIcon() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = "#000000"; // Fekete háttér
+            ctx.fillRect(0,0,32,32); 
+            ctx.fillStyle = "#FF0000"; // Piros háromszög
+            ctx.beginPath();
+            ctx.moveTo(8, 6); ctx.lineTo(26, 16); ctx.lineTo(8, 26);
+            ctx.fill();
+            document.getElementById('dynamic-favicon').href = canvas.toDataURL('image/png');
+        }
+
+        // Előzmények kezelése
+        function saveToHistory(url) {
+            let history = JSON.parse(localStorage.getItem('smart_browser_history') || '[]');
+            if (!history.includes(url)) {
+                history.unshift(url); if (history.length > 5) history.pop();
+                localStorage.setItem('smart_browser_history', JSON.stringify(history));
+                loadHistory();
+            }
+        }
         function loadHistory() {
-            let list = document.getElementById('history-list');
-            list.innerHTML = '';
-            let history = JSON.parse(localStorage.getItem('raw_history') || '[]');
+            historyList.innerHTML = '';
+            let history = JSON.parse(localStorage.getItem('smart_browser_history') || '[]');
             history.forEach(url => {
                 let div = document.createElement('div');
-                div.className = 'history-item';
-                div.innerText = url;
+                div.innerText = url.substring(0, 40) + '...';
+                div.style.padding = "10px"; div.style.cursor = "pointer"; div.style.borderBottom = "1px solid #333";
                 div.onclick = () => startPlayer(url);
-                list.appendChild(div);
+                historyList.appendChild(div);
             });
         }
-        
-        // Vissza gomb
+
         document.addEventListener("keydown", function(e) {
-            if (e.key === "Escape" || e.key === "Back") stopPlayer();
+            if (playerContainer.style.display === 'block') {
+                if (e.key === 'Enter' || e.key === ' ') togglePlay();
+                if (e.key === 'Escape' || e.key === 'Back') stopPlayer();
+            }
         });
     </script>
 </body>
