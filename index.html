@@ -2,59 +2,51 @@
 <html lang="hu">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TV FIX</title>
+    <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0, user-scalable=no">
+    <title>Full Screen Fix</title>
     <style>
-        /* 1. A weboldal teste legyen egy rugalmas doboz, ami mindent középre húz */
-        html, body {
+        /* 1. Alap beállítások: Minden fekete és fix méretű */
+        body, html {
             margin: 0 !important;
             padding: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
+            width: 1920px !important;
+            height: 1080px !important;
             background-color: #000 !important;
             overflow: hidden !important;
-            
-            display: flex !important;
-            justify-content: center !important; /* Vízszintes közép */
-            align-items: center !important;     /* Függőleges közép */
         }
 
-        /* 2. A VIDEÓ BEÁLLÍTÁSA */
+        /* 2. A videó beállítása */
         video {
-            /* Abszolút pozíció helyett relatív, de kényszerített méretekkel */
+            /* Fix pozíció a bal felső saroktól */
             position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
             
-            /* Ez a trükk: A KÖZEPÉRE tesszük, nem a sarokba */
-            top: 50% !important;
-            left: 50% !important;
+            /* Kényszerített méret: Akkor is 1920x1080, ha a videó csak 480p! */
+            width: 1920px !important;
+            height: 1080px !important;
             
-            /* ...és visszahúzzuk a saját méretének felével, így matematikailag mindig középen lesz */
-            transform: translate(-50%, -50%) translateZ(0) !important;
+            /* A LÉNYEG: */
+            /* 'fill' = Húzza szét a pixeleket a keret széléig, mindegy mekkora az eredeti videó */
+            object-fit: fill !important; 
             
-            /* Méretezés: Minimum akkora legyen, mint a képernyő */
-            min-width: 100% !important;
-            min-height: 100% !important;
-            width: auto !important;
-            height: auto !important;
-
-            /* Kifeszítés */
-            object-fit: fill !important;
-            
-            z-index: 9999 !important;
-            outline: none !important;
-            background-color: black !important;
+            z-index: 9999;
+            background-color: black;
+            outline: none;
+            border: none;
         }
     </style>
 </head>
 <body>
 
-    <video id="player" controls autoplay playsinline></video>
+    <video id="player" width="1920" height="1080" controls autoplay playsinline></video>
 
     <script>
         window.onload = function() {
             const fullUrl = window.location.href;
             let videoLink = null;
 
+            // Link kinyerése (?film= vagy ?urls= után)
             if (fullUrl.includes("film=")) {
                 videoLink = fullUrl.substring(fullUrl.indexOf("film=") + 5);
             } else if (fullUrl.includes("urls=")) {
@@ -62,11 +54,12 @@
             }
 
             if (videoLink) {
+                // Ha van kódolás a linkben, dekódoljuk
                 try { if(videoLink.includes('%')) videoLink = decodeURIComponent(videoLink); } catch(e){}
                 
                 const player = document.getElementById('player');
                 player.src = videoLink;
-                console.log("Középre kényszerítve:", videoLink);
+                console.log("Lejátszás (Kényszerített 1080p keretben):", videoLink);
             }
         };
     </script>
