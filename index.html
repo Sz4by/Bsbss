@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV Média Lejátszó</title>
+    <title>TV Média Lejátszó (Javított)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body {
             background-color: #000;
             color: #fff;
-            overflow: hidden; /* Görgetősáv elrejtése */
-            cursor: none; /* Egérkurzor elrejtése TV-n */
+            overflow: hidden;
+            cursor: none;
+            font-family: sans-serif;
         }
 
-        /* Ha az egeret mozgatják, jelenjen meg a kurzor átmenetileg */
         body.mouse-active {
             cursor: default;
         }
@@ -26,36 +26,37 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            background: #000;
         }
 
         video {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* A videó arányainak megtartása */
+            max-height: 100vh;
         }
 
-        /* Képernyőn megjelenő ikonok (OSD) */
+        /* OSD Ikonok */
         .osd-icon {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             font-size: 8rem;
-            color: rgba(255, 255, 255, 0.8);
-            text-shadow: 0 0 20px rgba(0,0,0,0.8);
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 0 20px rgba(0,0,0,1);
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.2s ease;
             pointer-events: none;
             z-index: 20;
         }
 
-        /* Vezérlősáv alul */
+        /* Vezérlősáv */
         .controls-bar {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
             padding: 40px 50px;
             opacity: 0;
             transition: opacity 0.5s ease;
@@ -66,12 +67,11 @@
             opacity: 1;
         }
 
-        /* Progress bar stílus */
         .progress-container {
             width: 100%;
-            height: 10px;
-            background-color: rgba(255,255,255,0.3);
-            border-radius: 5px;
+            height: 12px;
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 6px;
             margin-bottom: 15px;
             position: relative;
             overflow: hidden;
@@ -79,124 +79,164 @@
 
         .progress-fill {
             height: 100%;
-            background-color: #e50914; /* Netflix-szerű piros */
+            background-color: #ff0000;
             width: 0%;
-            transition: width 0.1s linear;
+            box-shadow: 0 0 10px #ff0000;
         }
 
-        /* Kezdőképernyő üzenet */
-        #welcome-screen {
+        /* Hibaüzenet doboz */
+        #error-box {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #111;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            z-index: 50;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(50, 0, 0, 0.9);
+            border: 2px solid red;
             padding: 20px;
+            max-width: 80%;
+            text-align: center;
+            z-index: 60;
+            border-radius: 10px;
+        }
+
+        #debug-info {
+            font-family: monospace;
+            background: rgba(0,0,0,0.5);
+            padding: 5px;
+            margin-top: 10px;
+            word-break: break-all;
+            font-size: 0.8rem;
+            color: #ffa;
         }
     </style>
 </head>
 <body id="body">
 
-    <!-- Üdvözlő képernyő (ha nincs link) -->
-    <div id="welcome-screen" class="hidden">
-        <i class="fas fa-tv text-6xl mb-4 text-gray-400"></i>
-        <h1 class="text-4xl font-bold mb-4">TV Média Lejátszó</h1>
-        <p class="text-xl text-gray-300 mb-8 max-w-2xl">
-            Nem található videó forrás. Használd az alábbi formátumot a címsorban:
-        </p>
-        <code class="bg-gray-800 p-4 rounded text-lg break-all select-all text-yellow-400">
-            ?film=VIDEOLINK_HELYE
-        </code>
-        <p class="mt-8 text-sm text-gray-500">Távirányító gombok: OK (Lejátszás), Nyilak (Tekerés/Hangerő)</p>
+    <!-- Üdvözlő képernyő -->
+    <div id="welcome-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-gray-900 z-50 hidden">
+        <i class="fas fa-play-circle text-6xl mb-4 text-red-500"></i>
+        <h1 class="text-3xl font-bold mb-2">TV Lejátszó</h1>
+        <p class="text-gray-400 mb-6">Nincs videó link megadva.</p>
+        <div class="bg-black p-4 rounded border border-gray-700">
+            <code>?film=VIDEOLINK</code>
+        </div>
     </div>
 
-    <!-- Videó lejátszó konténer -->
+    <!-- Hibaüzenet -->
+    <div id="error-box" class="hidden">
+        <h2 class="text-2xl font-bold text-red-500 mb-2"><i class="fas fa-exclamation-triangle"></i> Hiba történt</h2>
+        <p id="error-message" class="mb-2">A videó nem játszható le.</p>
+        <div class="text-sm text-gray-300">Próbált link:</div>
+        <div id="debug-info">...</div>
+    </div>
+
+    <!-- Lejátszó -->
     <div id="video-container" class="hidden">
-        <video id="main-video" preload="auto">
-            <p>A böngésződ nem támogatja a videó lejátszást.</p>
+        <video id="main-video" playsinline webkit-playsinline>
+            <source src="" type="video/mp4">
+            A böngésződ nem támogatja a videó taget.
         </video>
 
         <!-- Töltés ikon -->
-        <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-30 hidden">
-            <i class="fas fa-circle-notch fa-spin text-6xl text-white"></i>
+        <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 z-30 hidden">
+            <div class="flex flex-col items-center">
+                <i class="fas fa-circle-notch fa-spin text-6xl text-red-500 mb-4"></i>
+                <p class="text-xl font-bold">Videó betöltése...</p>
+            </div>
         </div>
 
-        <!-- OSD Ikonok (Play, Pause, Seek) -->
+        <!-- OSD Ikonok -->
         <div id="osd-play" class="osd-icon"><i class="fas fa-play"></i></div>
         <div id="osd-pause" class="osd-icon"><i class="fas fa-pause"></i></div>
-        <div id="osd-forward" class="osd-icon"><i class="fas fa-forward"></i><span class="text-3xl block text-center font-bold">+10s</span></div>
-        <div id="osd-rewind" class="osd-icon"><i class="fas fa-backward"></i><span class="text-3xl block text-center font-bold">-10s</span></div>
+        <div id="osd-forward" class="osd-icon"><i class="fas fa-forward"></i></div>
+        <div id="osd-rewind" class="osd-icon"><i class="fas fa-backward"></i></div>
         <div id="osd-vol-up" class="osd-icon"><i class="fas fa-volume-up"></i></div>
         <div id="osd-vol-down" class="osd-icon"><i class="fas fa-volume-down"></i></div>
 
-        <!-- Alsó információs sáv -->
+        <!-- Vezérlősáv -->
         <div id="controls-bar" class="controls-bar">
             <div class="progress-container">
                 <div id="progress-fill" class="progress-fill"></div>
             </div>
-            <div class="flex justify-between items-center text-2xl font-bold drop-shadow-md">
-                <div id="video-title">Videó lejátszása...</div>
+            <div class="flex justify-between items-center text-3xl font-bold drop-shadow-md px-2">
+                <div class="flex items-center gap-4">
+                    <i class="fas fa-film text-gray-400"></i>
+                    <span id="video-status">Lejátszás</span>
+                </div>
                 <div>
-                    <span id="current-time">00:00</span> / <span id="duration">00:00</span>
+                    <span id="current-time">00:00</span> / <span id="duration">--:--</span>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Elemek lekérése
+        // --- ELEMEK ---
         const video = document.getElementById('main-video');
         const videoContainer = document.getElementById('video-container');
         const welcomeScreen = document.getElementById('welcome-screen');
+        const errorBox = document.getElementById('error-box');
+        const errorMessage = document.getElementById('error-message');
+        const debugInfo = document.getElementById('debug-info');
+        const loadingSpinner = document.getElementById('loading-spinner');
         const progressFill = document.getElementById('progress-fill');
         const currentTimeEl = document.getElementById('current-time');
         const durationEl = document.getElementById('duration');
-        const body = document.getElementById('body');
-        const loadingSpinner = document.getElementById('loading-spinner');
         const controlsBar = document.getElementById('controls-bar');
+        const videoStatus = document.getElementById('video-status');
 
-        // URL paraméterek feldolgozása
-        const urlParams = new URLSearchParams(window.location.search);
-        const filmUrl = urlParams.get('film');
+        // --- URL FELDOLGOZÁS (JAVÍTOTT) ---
+        // Nem a standard paraméterkeresőt használjuk, mert az elvágja az & jeleket.
+        // Saját logikát írunk, ami mindent kivesz a "?film=" után.
+        
+        function getFullFilmUrl() {
+            const fullUrl = window.location.href;
+            const searchString = "?film=";
+            const index = fullUrl.indexOf(searchString);
+            
+            if (index !== -1) {
+                // Mindent visszaadunk a ?film= után
+                return fullUrl.substring(index + searchString.length);
+            }
+            return null;
+        }
 
-        // Időzítők az UI eltüntetéséhez
-        let uiHideTimeout;
-        let mouseHideTimeout;
+        const filmUrl = getFullFilmUrl();
+        let uiTimeout;
 
-        // Inicializálás
+        // --- INDÍTÁS ---
         if (filmUrl) {
             welcomeScreen.classList.add('hidden');
             videoContainer.classList.remove('hidden');
-            
-            // Videó betöltése
-            video.src = filmUrl;
             loadingSpinner.classList.remove('hidden');
+            
+            console.log("Kísérlet a következő betöltésére:", filmUrl);
+            debugInfo.innerText = filmUrl; // Kiírjuk a linket hibakereséshez
 
-            // Automatikus lejátszás megkísérlése
+            video.src = filmUrl;
+            video.load();
+
+            // Automatikus lejátszás
             const playPromise = video.play();
             if (playPromise !== undefined) {
                 playPromise.then(_ => {
-                    // Autoplay sikerült
                     showOSD('play');
                 }).catch(error => {
-                    // Autoplay blokkolva, várni kell a felhasználói interakcióra
-                    console.log("Autoplay blokkolva, várjuk a gombnyomást.");
+                    console.log("Autoplay blokkolva. Kézi indítás szükséges.");
                     loadingSpinner.classList.add('hidden');
+                    videoStatus.innerText = "Nyomd meg az OK gombot";
                 });
             }
         } else {
-            // Nincs link megadva
             welcomeScreen.classList.remove('hidden');
         }
 
-        // --- Videó eseménykezelők ---
+        // --- VIDEÓ ESEMÉNYEK ---
+
+        video.addEventListener('loadeddata', () => {
+            loadingSpinner.classList.add('hidden');
+            errorBox.classList.add('hidden'); // Ha sikeres, tüntessük el a hibát
+        });
 
         video.addEventListener('waiting', () => {
             loadingSpinner.classList.remove('hidden');
@@ -204,84 +244,62 @@
 
         video.addEventListener('playing', () => {
             loadingSpinner.classList.add('hidden');
-            showControlsTemp();
+            errorBox.classList.add('hidden');
+            videoStatus.innerText = "Lejátszás";
+            showControls();
+        });
+
+        video.addEventListener('pause', () => {
+             videoStatus.innerText = "Szünet";
+             showControls();
         });
 
         video.addEventListener('timeupdate', () => {
-            updateProgress();
-        });
-
-        video.addEventListener('loadedmetadata', () => {
-            durationEl.innerText = formatTime(video.duration);
-            loadingSpinner.classList.add('hidden');
-        });
-
-        video.addEventListener('ended', () => {
-             showControlsTemp();
-        });
-
-        // --- Távirányító / Billentyűzet kezelés ---
-
-        document.addEventListener('keydown', (e) => {
-            showControlsTemp(); // Bármilyen gombnyomásra megjelenik a sáv
-
-            // Fontos: Smart TV-ken a billentyűk kódjai szabványosak, de néha eltérhetnek.
-            // Általában: Enter (13), Balra (37), Fel (38), Jobbra (39), Le (40), Space (32)
-
-            switch(e.key) {
-                case 'Enter':
-                case 'Select': // Régebbi TV-k
-                case ' ': // Space
-                    togglePlay();
-                    e.preventDefault(); // Görgetés megakadályozása
-                    break;
-                
-                case 'ArrowLeft':
-                case 'Left':
-                    seek(-10);
-                    e.preventDefault();
-                    break;
-
-                case 'ArrowRight':
-                case 'Right':
-                    seek(10);
-                    e.preventDefault();
-                    break;
-
-                case 'ArrowUp':
-                case 'Up':
-                    adjustVolume(0.1);
-                    e.preventDefault();
-                    break;
-
-                case 'ArrowDown':
-                case 'Down':
-                    adjustVolume(-0.1);
-                    e.preventDefault();
-                    break;
-                
-                case 'Backspace':
-                case 'Back':
-                    // Opcionális: visszalépés
-                    break;
+            if (video.duration) {
+                const percent = (video.currentTime / video.duration) * 100;
+                progressFill.style.width = percent + '%';
+                currentTimeEl.innerText = formatTime(video.currentTime);
+                durationEl.innerText = formatTime(video.duration);
             }
         });
 
-        // --- Egér kezelés (ha van "Magic Remote" vagy egér) ---
-        
-        document.addEventListener('mousemove', () => {
-            body.classList.add('mouse-active');
-            showControlsTemp();
+        // HIBAKEZELÉS
+        video.addEventListener('error', (e) => {
+            loadingSpinner.classList.add('hidden');
+            errorBox.classList.remove('hidden');
             
-            clearTimeout(mouseHideTimeout);
-            mouseHideTimeout = setTimeout(() => {
-                body.classList.remove('mouse-active');
-            }, 3000);
+            let errText = "Ismeretlen hiba.";
+            if (video.error) {
+                switch (video.error.code) {
+                    case MediaError.MEDIA_ERR_ABORTED:
+                        errText = "A videó betöltése megszakadt.";
+                        break;
+                    case MediaError.MEDIA_ERR_NETWORK:
+                        errText = "Hálózati hiba. Ellenőrizd az internetet.";
+                        break;
+                    case MediaError.MEDIA_ERR_DECODE:
+                        errText = "A videó sérült vagy a TV nem támogatja a formátumot.";
+                        break;
+                    case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                        errText = "A forrás nem támogatott vagy a link lejárt.";
+                        break;
+                }
+            }
+            errorMessage.innerText = errText;
         });
 
-        videoContainer.addEventListener('click', togglePlay);
+        // --- VEZÉRLÉS ---
 
-        // --- Funkciók ---
+        function showControls() {
+            videoContainer.classList.add('controls-visible');
+            clearTimeout(uiTimeout);
+            // Csak akkor tűnjön el, ha megy a videó
+            if (!video.paused) {
+                uiTimeout = setTimeout(() => {
+                    videoContainer.classList.remove('controls-visible');
+                }, 4000);
+            }
+        }
 
         function togglePlay() {
             if (video.paused) {
@@ -291,66 +309,82 @@
                 video.pause();
                 showOSD('pause');
             }
+            showControls();
         }
 
         function seek(seconds) {
             video.currentTime += seconds;
-            if (seconds > 0) showOSD('forward');
-            else showOSD('rewind');
-            updateProgress();
+            showOSD(seconds > 0 ? 'forward' : 'rewind');
+            showControls();
         }
 
         function adjustVolume(change) {
-            let newVol = video.volume + change;
-            if (newVol > 1) newVol = 1;
-            if (newVol < 0) newVol = 0;
-            video.volume = newVol;
-            
-            if (change > 0) showOSD('vol-up');
-            else showOSD('vol-down');
+            let vol = video.volume + change;
+            if (vol > 1) vol = 1;
+            if (vol < 0) vol = 0;
+            video.volume = vol;
+            showOSD(change > 0 ? 'vol-up' : 'vol-down');
+            showControls();
         }
 
-        function formatTime(seconds) {
-            if (!seconds) return "00:00";
-            const m = Math.floor(seconds / 60);
-            const s = Math.floor(seconds % 60);
-            return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-        }
-
-        function updateProgress() {
-            const percent = (video.currentTime / video.duration) * 100;
-            progressFill.style.width = `${percent}%`;
-            currentTimeEl.innerText = formatTime(video.currentTime);
-        }
-
-        // OSD (Képernyőn megjelenő ikonok) kezelése
         function showOSD(type) {
-            // Előző ikonok elrejtése
             document.querySelectorAll('.osd-icon').forEach(el => el.style.opacity = '0');
-            
-            const iconId = `osd-${type}`;
-            const icon = document.getElementById(iconId);
+            const icon = document.getElementById('osd-' + type);
             if (icon) {
                 icon.style.opacity = '1';
-                setTimeout(() => {
-                    icon.style.opacity = '0';
-                }, 800);
+                setTimeout(() => icon.style.opacity = '0', 800);
             }
         }
 
-        // Vezérlősáv ideiglenes megjelenítése
-        function showControlsTemp() {
-            videoContainer.classList.add('controls-visible');
-            clearTimeout(uiHideTimeout);
-            uiHideTimeout = setTimeout(() => {
-                // Csak akkor rejtjük el, ha a videó nem áll (pause)
-                if (!video.paused) {
-                    videoContainer.classList.remove('controls-visible');
-                }
-            }, 3000); // 3 másodperc után eltűnik
+        function formatTime(s) {
+            if (!s) return "00:00";
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return (m < 10 ? '0'+m : m) + ':' + (sec < 10 ? '0'+sec : sec);
         }
+
+        // --- INPUT KEZELÉS (TV Remote & Keyboard) ---
+
+        document.addEventListener('keydown', (e) => {
+            showControls();
+            
+            // Gombok kezelése
+            switch(e.key) {
+                case 'Enter':
+                case ' ': 
+                    e.preventDefault();
+                    togglePlay(); 
+                    break;
+                case 'ArrowLeft': 
+                    e.preventDefault();
+                    seek(-10); 
+                    break;
+                case 'ArrowRight': 
+                    e.preventDefault();
+                    seek(10); 
+                    break;
+                case 'ArrowUp': 
+                    e.preventDefault();
+                    adjustVolume(0.1); 
+                    break;
+                case 'ArrowDown': 
+                    e.preventDefault();
+                    adjustVolume(-0.1); 
+                    break;
+            }
+        });
+
+        // Egér mozgás
+        document.addEventListener('mousemove', () => {
+            document.body.classList.add('mouse-active');
+            showControls();
+        });
+        
+        // Kattintás a képernyőre
+        videoContainer.addEventListener('click', togglePlay);
 
     </script>
 </body>
 </html>
+
 
