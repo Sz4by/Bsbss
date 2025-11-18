@@ -2,10 +2,10 @@
 <html lang="hu">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kifeszített Mozi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TV FIX</title>
     <style>
-        /* Minden margó törlése */
+        /* 1. A weboldal teste legyen egy rugalmas doboz, ami mindent középre húz */
         html, body {
             margin: 0 !important;
             padding: 0 !important;
@@ -13,55 +13,48 @@
             height: 100vh !important;
             background-color: #000 !important;
             overflow: hidden !important;
+            
+            display: flex !important;
+            justify-content: center !important; /* Vízszintes közép */
+            align-items: center !important;     /* Függőleges közép */
         }
 
-        /* A VIDEÓ KÉNYSZERÍTÉSE */
+        /* 2. A VIDEÓ BEÁLLÍTÁSA */
         video {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100vw !important;  /* Teljes szélesség */
-            height: 100vh !important; /* Teljes magasság */
+            /* Abszolút pozíció helyett relatív, de kényszerített méretekkel */
+            position: absolute !important;
             
-            /* ITT A TITOK: */
-            /* 'fill' = Nyújtsa ki a széléig (lehet, hogy torzul kicsit) */
-            /* 'cover' = Nagyítsa ki (levághatja a szélét) */
-            object-fit: fill !important; 
+            /* Ez a trükk: A KÖZEPÉRE tesszük, nem a sarokba */
+            top: 50% !important;
+            left: 50% !important;
             
-            z-index: 1;
-            outline: none;
-        }
+            /* ...és visszahúzzuk a saját méretének felével, így matematikailag mindig középen lesz */
+            transform: translate(-50%, -50%) translateZ(0) !important;
+            
+            /* Méretezés: Minimum akkora legyen, mint a képernyő */
+            min-width: 100% !important;
+            min-height: 100% !important;
+            width: auto !important;
+            height: auto !important;
 
-        /* Gomb a képarány váltáshoz (ha torz lenne) */
-        #ratio-btn {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 9999;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 1px solid white;
-            padding: 10px;
-            cursor: pointer;
-            font-size: 14px;
-            border-radius: 5px;
-            opacity: 0.5; /* Halvány */
+            /* Kifeszítés */
+            object-fit: fill !important;
+            
+            z-index: 9999 !important;
+            outline: none !important;
+            background-color: black !important;
         }
-        #ratio-btn:hover { opacity: 1; }
     </style>
 </head>
 <body>
 
-    <button id="ratio-btn" onclick="toggleRatio()">Képarány: NYÚJTÁS</button>
-
-    <video id="player" controls autoplay playsinline name="media"></video>
+    <video id="player" controls autoplay playsinline></video>
 
     <script>
         window.onload = function() {
             const fullUrl = window.location.href;
             let videoLink = null;
 
-            // Link kinyerése
             if (fullUrl.includes("film=")) {
                 videoLink = fullUrl.substring(fullUrl.indexOf("film=") + 5);
             } else if (fullUrl.includes("urls=")) {
@@ -73,29 +66,9 @@
                 
                 const player = document.getElementById('player');
                 player.src = videoLink;
-                console.log("Lejátszás:", videoLink);
+                console.log("Középre kényszerítve:", videoLink);
             }
         };
-
-        // Funkció a képarány váltogatásához a TV-n
-        function toggleRatio() {
-            const player = document.getElementById('player');
-            const btn = document.getElementById('ratio-btn');
-            
-            // Jelenlegi beállítás lekérése
-            const currentFit = window.getComputedStyle(player).objectFit;
-
-            if (currentFit === 'fill') {
-                player.style.objectFit = 'contain'; // Eredeti (fekete csíkos)
-                btn.innerText = "Képarány: EREDETI";
-            } else if (currentFit === 'contain') {
-                player.style.objectFit = 'cover'; // Nagyított (levágja a szélét)
-                btn.innerText = "Képarány: NAGYÍTÁS";
-            } else {
-                player.style.objectFit = 'fill'; // Nyújtott (teljes képernyő)
-                btn.innerText = "Képarány: NYÚJTÁS";
-            }
-        }
     </script>
 
 </body>
