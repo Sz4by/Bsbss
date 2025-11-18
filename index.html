@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV Force M3U8 App</title>
-    
+    <title>TV Smart Player</title>
     <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
 
     <style>
-        /* --- TV DESIGN (Sötét mód, nagy gombok) --- */
+        /* --- TV DESIGN --- */
         body {
             background-color: #121212;
             color: white;
@@ -20,7 +19,6 @@
             flex-direction: column;
         }
 
-        /* Menü képernyő */
         #menu-screen {
             display: flex;
             flex-direction: column;
@@ -28,7 +26,6 @@
             justify-content: center;
             height: 100%;
             padding: 20px;
-            z-index: 2;
         }
 
         h1 { color: #e50914; margin-bottom: 20px; text-transform: uppercase; }
@@ -41,6 +38,8 @@
             border: none;
             margin-bottom: 15px;
             text-align: center;
+            background: #333;
+            color: white;
         }
 
         .btn {
@@ -53,9 +52,8 @@
             cursor: pointer;
             font-weight: bold;
         }
-        .btn:focus { outline: 4px solid white; } /* TV távirányító fókusz */
+        .btn:focus { outline: 4px solid white; }
 
-        /* Előzmények listája */
         #history-list {
             margin-top: 30px;
             width: 80%;
@@ -74,23 +72,19 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .history-item:hover, .history-item:focus { background-color: rgba(255,255,255,0.2); }
 
-        /* Lejátszó képernyő */
         #player-container {
-            display: none; /* Alapból rejtve */
+            display: none;
             width: 100%;
             height: 100%;
             position: absolute;
             top: 0;
             left: 0;
-            z-index: 10;
             background: black;
         }
 
         .video-js { width: 100% !important; height: 100% !important; }
         
-        /* Vissza gomb a lejátszó felett */
         #back-btn {
             position: absolute;
             top: 20px;
@@ -100,24 +94,19 @@
             color: white;
             border: 2px solid white;
             padding: 10px 20px;
-            font-size: 18px;
             cursor: pointer;
-            display: none; /* Csak ha mozog az egér/távirányító */
+            display: none;
         }
-        
-        /* Ha mozog az egér, mutassa a vissza gombot */
         #player-container:hover #back-btn { display: block; }
     </style>
 </head>
 <body>
 
     <div id="menu-screen">
-        <h1>Stream Lejátszó</h1>
+        <h1>Smart TV Player</h1>
         <input type="text" id="urlInput" placeholder="Illeszd be a linket...">
         <button class="btn" onclick="startPlayer()">LEJÁTSZÁS</button>
-        
-        <div id="history-list">
-            </div>
+        <div id="history-list"></div>
     </div>
 
     <div id="player-container">
@@ -133,43 +122,41 @@
         const menuScreen = document.getElementById('menu-screen');
         const playerContainer = document.getElementById('player-container');
         
-        // Betöltéskor megnézzük, van-e URL a címsorban
         window.onload = function() {
-            loadHistory(); // Előzmények betöltése
-            
+            loadHistory();
             const fullUrl = window.location.href;
             if (fullUrl.includes("urls=")) {
-                // "Okos" vágás a címsorból
                 let videoLink = fullUrl.substring(fullUrl.indexOf("urls=") + 5);
                 try { if(videoLink.includes('%')) videoLink = decodeURIComponent(videoLink); } catch(e){}
-                
-                // Ha címsorból jött, azonnal indítjuk
                 startPlayer(videoLink);
             }
         };
 
         function startPlayer(link = null) {
-            // Vagy a paraméterből, vagy a mezőből vesszük a linket
             const linkToPlay = link || urlInput.value;
-            
             if (!linkToPlay) return alert("Adj meg egy linket!");
 
-            // Elmentjük az előzményekbe (ha nem onnan nyitottuk épp)
             saveToHistory(linkToPlay);
-
-            // UI váltás
             menuScreen.style.display = 'none';
             playerContainer.style.display = 'block';
 
-            console.log("Lejátszás indítása (M3U8 FORCE):", linkToPlay);
+            // --- AZ OKOS RÉSZ (Hogy ne legyen hibaüzenet) ---
+            let fileType = 'video/mp4'; // Alapból MP4-nek hisszük (VK-hoz ez kell!)
+            
+            // Csak akkor váltunk M3U8-ra, ha TÉNYLEG az
+            if (linkToPlay.includes('.m3u8')) {
+                fileType = 'application/x-mpegURL';
+                console.log("Mód: HLS Stream (m3u8)");
+            } else {
+                console.log("Mód: Normál videó (mp4)");
+            }
 
-            // --- ITT A LÉNYEG, AMIT KÉRTÉL ---
             player.src({
                 src: linkToPlay,
-                type: 'application/x-mpegURL' // <--- MINDENT M3U8-NAK HAZUDUNK!
+                type: fileType 
             });
 
-            player.play();
+            player.play().catch(e => console.log("Autoplay hiba:", e));
         }
 
         function stopPlayer() {
@@ -178,13 +165,12 @@
             menuScreen.style.display = 'flex';
         }
 
-        // Előzmények kezelése (LocalStorage)
         function saveToHistory(url) {
-            let history = JSON.parse(localStorage.getItem('my_tv_history') || '[]');
+            let history = JSON.parse(localStorage.getItem('tv_smart_history') || '[]');
             if (!history.includes(url)) {
                 history.unshift(url);
-                if (history.length > 10) history.pop(); // Max 10 elem
-                localStorage.setItem('my_tv_history', JSON.stringify(history));
+                if (history.length > 10) history.pop();
+                localStorage.setItem('tv_smart_history', JSON.stringify(history));
                 loadHistory();
             }
         }
@@ -192,26 +178,18 @@
         function loadHistory() {
             let list = document.getElementById('history-list');
             list.innerHTML = '';
-            let history = JSON.parse(localStorage.getItem('my_tv_history') || '[]');
-            
+            let history = JSON.parse(localStorage.getItem('tv_smart_history') || '[]');
             history.forEach(url => {
                 let item = document.createElement('div');
                 item.className = 'history-item';
                 item.innerText = url;
-                item.tabIndex = 0; // Távirányítóval kijelölhető
-                
                 item.onclick = () => startPlayer(url);
-                item.onkeydown = (e) => { if(e.key === 'Enter') startPlayer(url); }; // TV Enter gomb
-                
                 list.appendChild(item);
             });
         }
 
-        // TV Távirányító "Vissza" gomb kezelése
         document.addEventListener("keydown", function(e) {
-            if (e.key === "Escape" || e.key === "Back") {
-                stopPlayer();
-            }
+            if (e.key === "Escape" || e.key === "Back") stopPlayer();
         });
     </script>
 
