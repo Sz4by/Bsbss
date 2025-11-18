@@ -2,66 +2,126 @@
 <html lang="hu">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0, user-scalable=no">
-    <title>Full Screen Fix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        /* 1. Alap beállítások: Minden fekete és fix méretű */
-        body, html {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 1920px !important;
-            height: 1080px !important;
-            background-color: #000 !important;
-            overflow: hidden !important;
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .container { width: 90%; max-width: 800px; text-align: center; }
+        
+        /* Input mező (ha mégis kéne) */
+        input[type="text"] {
+            width: 100%; padding: 10px; font-size: 18px;
+            margin-bottom: 15px; border-radius: 5px; border: none;
+            background: #333; color: white;
         }
 
-        /* 2. A videó beállítása */
-        video {
-            /* Fix pozíció a bal felső saroktól */
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            
-            /* Kényszerített méret: Akkor is 1920x1080, ha a videó csak 480p! */
-            width: 1920px !important;
-            height: 1080px !important;
-            
-            /* A LÉNYEG: */
-            /* 'fill' = Húzza szét a pixeleket a keret széléig, mindegy mekkora az eredeti videó */
-            object-fit: fill !important; 
-            
-            z-index: 9999;
-            background-color: black;
-            outline: none;
-            border: none;
+        /* Gomb */
+        button {
+            padding: 12px 30px; font-size: 22px;
+            background-color: #007bff; color: white;
+            border: none; border-radius: 5px; cursor: pointer;
         }
+        
+        /* Fókusz jelzése TV távirányítóhoz */
+        input:focus, button:focus {
+            outline: 4px solid #ffeb3b;
+            background-color: #444;
+        }
+
+        video {
+            width: 100%; max-height: 75vh;
+            background: black; margin-top: 20px;
+            border: 1px solid #444; display: none;
+        }
+        .error-msg { color: red; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <video id="player" width="1920" height="1080" controls autoplay playsinline></video>
+    <div class="container">
+        <h2 id="statusText">TV Player</h2>
+        
+        <input type="text" id="videoUrl" placeholder="Videó linkje...">
+        <button onclick="manualStart()">Lejátszás / Újratöltés</button>
+        <p id="error" class="error-msg"></p>
+
+        <video id="videoPlayer" controls></video>
+    </div>
 
     <script>
+        // 1. Amikor az oldal betöltődik, megnézzük a linket
         window.onload = function() {
-            const fullUrl = window.location.href;
-            let videoLink = null;
+            // Kiolvassuk az 'url' paramétert a böngésző címsorából
+            const params = new URLSearchParams(window.location.search);
+            const linkFromUrl = params.get('url');
 
-            // Link kinyerése (?film= vagy ?urls= után)
-            if (fullUrl.includes("film=")) {
-                videoLink = fullUrl.substring(fullUrl.indexOf("film=") + 5);
-            } else if (fullUrl.includes("urls=")) {
-                videoLink = fullUrl.substring(fullUrl.indexOf("urls=") + 5);
-            }
-
-            if (videoLink) {
-                // Ha van kódolás a linkben, dekódoljuk
-                try { if(videoLink.includes('%')) videoLink = decodeURIComponent(videoLink); } catch(e){}
-                
-                const player = document.getElementById('player');
-                player.src = videoLink;
-                console.log("Lejátszás (Kényszerített 1080p keretben):", videoLink);
+            if (linkFromUrl) {
+                // Ha van link, beírjuk a mezőbe és indítjuk
+                document.getElementById('videoUrl').value = linkFromUrl;
+                document.getElementById('statusText').innerText = "Videó betöltése...";
+                playVideo(linkFromUrl);
             }
         };
+
+        function manualStart() {
+            var url = document.getElementById('videoUrl').value;
+            playVideo(url);
+        }
+
+        function playVideo(url) {
+            var video = document.getElementById('videoPlayer');
+            var errorMsg = document.getElementById('error');
+
+            if (!url) {
+                errorMsg.innerText = "Nincs megadva link!";
+                return;
+            }
+
+            errorMsg.innerText = "";
+            video.style.display = "block";
+
+            // HLS (m3u8) támogatás
+            if (Hls.isSupported() && url.includes('.m3u8')) {
+                var hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    // Automatikus indítás
+                    var promise = video.play();
+                    if (promise !== undefined) {
+                        promise.catch(error => {
+                            // Ha a böngésző tiltja az automatikus hangos indítást
+                            console.log("Autoplay tiltva, némítva indítjuk.");
+                            video.muted = true;
+                            video.play();
+                        });
+                    }
+                });
+            }
+            // MP4 / WebM
+            else {
+                video.src = url;
+                video.play().catch(error => {
+                     // Ha a böngésző tiltja az autoplay-t
+                     video.muted = true; 
+                     video.play();
+                });
+            }
+            
+            video.focus(); // Távirányító fókusz
+        }
     </script>
 
 </body>
