@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Videó Lejátszó</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            background-color: #000; /* Fekete háttér a mozihatásért */
+            height: 100%;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        #videoPlayer {
+            max-width: 100%;
+            max-height: 100vh;
+            width: auto;
+            height: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        #error-msg {
+            color: white;
+            font-family: sans-serif;
+            display: none; /* Alapból rejtett */
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <video id="videoPlayer" controls autoplay name="media">
+        A böngésződ nem támogatja a videó lejátszását.
+    </video>
+
+    <div id="error-msg">
+        <h2>Nem található videó URL!</h2>
+        <p>Kérlek használd így: <code>oldalad.com/?urls=VIDEO_LINK_ITT</code></p>
+    </div>
+
+    <script>
+        // 1. URL paraméterek kinyerése
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        
+        // 2. Az 'urls' paraméter értékének megszerzése
+        // Figyelem: Ha a videó linkjében is vannak '&' jelek, azokat kódolni kellene,
+        // de itt megpróbáljuk a teljes stringet kezelni.
+        let videoUrl = urlParams.get('urls');
+
+        const player = document.getElementById('videoPlayer');
+        const errorDiv = document.getElementById('error-msg');
+
+        if (videoUrl) {
+            // 3. Ha van URL, beállítjuk a forrást
+            console.log("Videó betöltése innen:", videoUrl);
+            player.src = videoUrl;
+            
+            // Opcionális: hibakezelés, ha a link nem működik
+            player.onerror = function() {
+                player.style.display = 'none';
+                errorDiv.style.display = 'block';
+                errorDiv.querySelector('h2').innerText = "Hiba a videó betöltésekor";
+                errorDiv.querySelector('p').innerText = "Lehet, hogy a link lejárt vagy a szerver tiltja a külső lejátszást (CORS).";
+            };
+        } else {
+            // 4. Ha nincs URL megadva
+            player.style.display = 'none';
+            errorDiv.style.display = 'block';
+        }
+    </script>
+
+</body>
+</html>
